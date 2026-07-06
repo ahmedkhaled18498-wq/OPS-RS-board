@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Ops Task Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #ffffff;
+    --surface: #f6f7f9;
+    --panel: #ffffff;
+    --line: #d7dce3;
+    --text: #1b2430;
+    --text-dim: #8891a0;
+    --blue: #2563eb;
+    --blue-bg: #eaf0fe;
+
+    --waiting: #e0342d;
+    --waiting-bg: #fdeceb;
+    --prog: #f59e0b;
+    --prog-bg: #fef3dd;
+    --done: #22c55e;
+    --done-bg: #e8f9ee;
+    --purple: #7c3aed;
+    --purple-bg: #f1e9fe;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--surface);
+    color: var(--text);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    min-height:100vh;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  header{
+    background: var(--panel);
+    border-bottom:1.5px solid var(--line);
+    padding: 16px 20px;
+    position: sticky; top:0; z-index: 30;
+  }
+  .header-inner{
+    max-width: 1040px; margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-dot{ width:10px; height:10px; border-radius:50%; background:var(--blue); }
+  .brand h1{ font-size:16px; margin:0; font-weight:800; }
+  .brand .sub{ font-size:11px; color:var(--text-dim); }
+
+  .id-area{ display:flex; align-items:center; gap:8px; }
+  .id-area input{
+    background: var(--surface); border:1.5px solid var(--line); color:var(--text);
+    padding:10px 12px; border-radius:10px; font-size:14px; font-family:'IBM Plex Mono',monospace;
+    text-transform:uppercase; letter-spacing:1px; width:130px;
+  }
+  .id-area button{
+    background: var(--blue); color:#fff; border:none; padding:10px 16px;
+    border-radius:10px; font-weight:700; font-size:12.5px; cursor:pointer;
+  }
+  .id-chip{
+    background: var(--blue-bg); border:1px solid #c7d9fd; color:var(--blue);
+    padding:9px 14px; border-radius:10px; font-size:13px; font-weight:700;
+    display:flex; align-items:center; gap:10px;
+  }
+  .id-chip .role{ color:var(--text-dim); font-weight:500; font-size:11.5px; }
+  .id-chip button{ background:none; border:none; color:var(--text-dim); font-size:11px; cursor:pointer; text-decoration:underline; padding:0; }
+  .err{ color:var(--waiting); font-size:11.5px; margin-top:6px; }
+
+  .crane-picker-wrap{
+    position:absolute; top:calc(100% + 8px); left:0;
+    background:var(--panel); border:1.5px solid var(--line); border-radius:12px;
+    padding:10px 10px 8px; box-shadow:0 10px 24px rgba(20,30,50,0.14); z-index:40;
+    max-width:260px; animation: pop .15s ease;
+  }
+  .crane-picker-label{ font-size:10.5px; color:var(--text-dim); font-weight:700; margin-bottom:7px; white-space:nowrap; }
+  .crane-picker{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; max-width:240px; }
+  .crane-picker::-webkit-scrollbar{ height:5px; }
+  .crane-picker::-webkit-scrollbar-thumb{ background:var(--line); border-radius:10px; }
+  .crane-chip{
+    flex-shrink:0; background:var(--surface); border:1.5px solid var(--line); color:var(--text);
+    padding:8px 12px; border-radius:10px; font-size:12.5px; font-weight:800; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .crane-chip.active{ background:var(--blue); border-color:var(--blue); color:#fff; }
+
+  main{ max-width: 1040px; margin: 0 auto; padding: 20px 20px 60px; }
+
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+  .toolbar h2{ font-size:14px; margin:0; color:var(--text-dim); font-weight:700; }
+  .new-btn{
+    background: var(--blue); color:#fff; border:none; padding:11px 18px;
+    border-radius:12px; font-weight:700; font-size:13px; cursor:pointer;
+    display:flex; align-items:center; gap:6px; box-shadow:0 6px 16px rgba(37,99,235,0.25);
+  }
+
+  .empty{ text-align:center; color:var(--text-dim); padding:70px 20px; font-size:13.5px; line-height:1.9; }
+
+  .grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:14px;
+  }
+  .card{
+    background: var(--panel); border-radius:18px; padding:16px;
+    box-shadow: 0 2px 10px rgba(20,30,50,0.06);
+    border:1.5px solid var(--line);
+    animation: pop .18s ease;
+  }
+  @keyframes pop{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .card.st-waiting{ background: var(--waiting-bg); border-color: rgba(224,52,45,0.35); }
+  .card.st-inprogress{ background: var(--prog-bg); border-color: rgba(245,158,11,0.35); }
+  .card.st-done{ background: var(--done-bg); border-color: rgba(34,197,94,0.35); }
+
+  .card-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .badge{
+    padding:4px 11px; border-radius:999px; font-size:10.5px; font-weight:800; color:#fff;
+  }
+  .st-waiting .badge{ background: var(--waiting); }
+  .st-inprogress .badge{ background: var(--prog); }
+  .st-done .badge{ background: var(--done); }
+  .time{ font-size:10.5px; color:var(--text-dim); }
+
+  .container-no{ font-family:'IBM Plex Mono',monospace; font-weight:800; font-size:18px; margin-bottom:2px; }
+  .route{ font-size:11px; color:var(--text-dim); margin-bottom:10px; }
+
+  .info-row{ display:flex; font-size:12.5px; padding:3px 0; }
+  .info-row .k{ width:110px; color:var(--text-dim); flex-shrink:0; }
+  .info-row .v{ font-weight:600; }
+
+  .card-actions{ margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+  .card-actions button{
+    flex:1; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:12.5px; cursor:pointer; color:#fff;
+    min-width:80px;
+  }
+  .btn-start{ background: var(--prog); }
+  .btn-done{ background: var(--done); }
+  .btn-del{ background: var(--waiting); }
+
+  .poa-field{ margin-top:10px; }
+  .poa-field label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; font-weight:700; }
+  .poa-field input{
+    width:100%; background: var(--panel); border:1.5px solid var(--line); color:var(--text);
+    padding:9px 10px; border-radius:9px; font-size:13px; font-family:'IBM Plex Mono',monospace;
+  }
+
+  /* modal */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(15,20,28,0.4);
+    display:flex; align-items:center; justify-content:center; z-index:60; padding:16px;
+  }
+  .modal{
+    background: var(--panel); border-radius:18px; width:100%; max-width:420px;
+    padding:22px; animation: pop .18s ease; border:1.5px solid var(--line);
+  }
+  .modal h3{ margin:0 0 16px; font-size:15px; }
+  .field{ margin-bottom:13px; }
+  .field label{ display:block; font-size:11.5px; color:var(--text-dim); margin-bottom:6px; font-weight:700; }
+  .field input, .field select{
+    width:100%; background: var(--surface); border:1.5px solid var(--line); color:var(--text);
+    padding:11px 12px; border-radius:10px; font-size:13.5px; font-family:inherit;
+  }
+  .field input.mono, .field select{ font-family:'IBM Plex Mono',monospace; }
+  .modal-actions{ display:flex; gap:8px; margin-top:6px; }
+  .modal-actions button{ flex:1; padding:12px; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer; border:none; }
+  .btn-cancel{ background: var(--surface); color:var(--text-dim); border:1.5px solid var(--line) !important; }
+  .btn-send{ background: var(--blue); color:#fff; }
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    background: var(--text); color:#fff; padding:10px 18px; border-radius:999px;
+    font-size:12.5px; z-index:99; font-weight:600; opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .toast.show{ opacity:1; }
+
+  /* stats */
+  .dash-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+  .stat-box{ background:var(--panel); border:1.5px solid var(--line); border-radius:14px; padding:14px; text-align:center; }
+  .stat-box .num{ font-size:24px; font-weight:800; font-family:'IBM Plex Mono',monospace; }
+  .stat-box .lbl{ font-size:11px; color:var(--text-dim); font-weight:700; margin-top:4px; }
+  .stat-box.waiting .num{ color:var(--waiting); }
+  .stat-box.inprogress .num{ color:var(--prog); }
+  .stat-box.done .num{ color:var(--done); }
+  @media (max-width: 620px){ .dash-stats{ grid-template-columns:1fr; } }
+
+  .role-note{
+    background: var(--purple-bg); color:var(--purple); border:1px solid #ddc8fb;
+    padding:10px 14px; border-radius:12px; font-size:12px; font-weight:600; margin-bottom:16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div>
+        <h1>Ops Task Board</h1>
+        <div class="sub">W (D&amp;W) = ينشئ &nbsp;•&nbsp; P = يستلم وينفذ &nbsp;•&nbsp; M = مراقب &nbsp;•&nbsp; V = مشاهدة فقط</div>
+      </div>
+    </div>
+    <div class="id-area" id="idArea"></div>
+  </div>
+</header>
+
+<main id="mainArea"></main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const TASKS_KEY = 'ops-task-board-v2:tasks';
+const HISTORY_KEY = 'ops-task-board-v2:history';
+const ID_KEY = 'ops-task-board-v2:my-id';
+const PENDING_CRANE_KEY = 'ops-task-board-v2:pending-crane';
+
+let myId = null, myRole = null;
+let tasks = [];
+let historyLog = []; // نسخة دائمة من كل تاسك اتعمل — بتفضل موجودة حتى لو التاسك اتحذف
+let preselectedCrane = null; // الكرين اللي اختاره الـ W قبل ما يدخل — بيتكتب تلقائي في أول تاسك
+
+const idArea = document.getElementById('idArea');
+const mainArea = document.getElementById('mainArea');
+const toastEl = document.getElementById('toast');
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=> toastEl.classList.remove('show'), 1700);
+}
+
+function validId(v){ return /^[WPMV]\d{4}$/.test(v.toUpperCase()); }
+function fmtTime(ts){ return ts ? new Date(ts).toLocaleString('ar-EG', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '—'; }
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent = s==null ? '' : s; return d.innerHTML; }
+function statusLabel(s){ return s==='done' ? 'Done' : s==='inprogress' ? 'In Progress' : 'Waiting'; }
+
+/* ---------- Local storage persistence (per-device) ---------- */
+function loadTasks(){
+  try{
+    const raw = localStorage.getItem(TASKS_KEY);
+    tasks = raw ? JSON.parse(raw) : [];
+  }catch(e){ tasks = []; }
+}
+function persistTasks(){
+  try{ localStorage.setItem(TASKS_KEY, JSON.stringify(tasks)); }
+  catch(e){ toast('حصل خطأ في الحفظ'); }
+}
+// يخلي أي تبويبات تانية مفتوحة على نفس الجهاز/المتصفح تتحدث لحظيًا لو حد استخدم دور تاني
+window.addEventListener('storage', (e)=>{
+  if(e.key === TASKS_KEY){ loadTasks(); render(); }
+  if(e.key === HISTORY_KEY){ loadHistory(); render(); }
+});
+
+/* ---------- History log (بيفضل موجود حتى لو التاسك اتحذف) ---------- */
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem(HISTORY_KEY);
+    historyLog = raw ? JSON.parse(raw) : [];
+  }catch(e){ historyLog = []; }
+}
+function persistHistory(){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(historyLog)); }
+  catch(e){ toast('حصل خطأ في حفظ الـ History'); }
+}
+function addHistoryEntry(t){
+  historyLog.push(Object.assign({}, t, {deleted:false, deletedAt:null}));
+  persistHistory();
+}
+function updateHistoryEntry(id, patch){
+  const h = historyLog.find(x=>x.id===id);
+  if(h) Object.assign(h, patch);
+  persistHistory();
+}
+
+function loadId(){
+  try{
+    const v = localStorage.getItem(ID_KEY);
+    if(v && validId(v)){ myId = v.toUpperCase(); myRole = myId[0]; }
+    const pc = localStorage.getItem(PENDING_CRANE_KEY);
+    if(pc) preselectedCrane = pc;
+  }catch(e){}
+  renderIdArea();
+}
+function saveId(v){
+  const val = v.trim().toUpperCase();
+  if(!validId(val)){ renderIdArea('لازم يبدأ بـ W أو P أو M أو V ومتبوع بـ 4 أرقام، مثال W1201'); return; }
+  myId = val; myRole = val[0];
+  try{ localStorage.setItem(ID_KEY, myId); }catch(e){}
+  renderIdArea();
+  loadTasks();
+  render();
+}
+
+function roleLabel(r){
+  return { W:'D&W — بينشئ التاسك', P:'Port/Planner — بيستلم وينفذ', M:'Monitor — كل الصلاحيات', V:'Viewer — مشاهدة فقط' }[r] || '';
+}
+
+function renderIdArea(errorMsg){
+  if(myId){
+    idArea.innerHTML = `
+      <div class="id-chip">
+        <span class="mono">${myId}</span>
+        <span class="role">${roleLabel(myRole)}</span>
+        <button id="logoutBtn">خروج</button>
+      </div>`;
+    document.getElementById('logoutBtn').onclick = ()=>{ myId=null; myRole=null; renderIdArea(); render(); };
+  }else{
+    idArea.innerHTML = `
+      <div style="position:relative; display:flex; align-items:center; gap:8px;">
+        <input id="idInput" class="mono" placeholder="W1201" maxlength="5" />
+        <button id="loginBtn">دخول</button>
+        ${errorMsg ? `<div class="err">${errorMsg}</div>` : ''}
+        <div id="cranePickerWrap" class="crane-picker-wrap" style="display:none;">
+          <div class="crane-picker-label">رقم الكرين — هيتكتب تلقائي في أول تاسك تفتحه</div>
+          <div class="crane-picker" id="cranePicker"></div>
+        </div>
+      </div>
+    `;
+    const idInputEl = document.getElementById('idInput');
+    document.getElementById('loginBtn').onclick = ()=> saveId(idInputEl.value);
+    idInputEl.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginBtn').click(); });
+    idInputEl.addEventListener('input', ()=> toggleCranePicker(idInputEl.value));
+    toggleCranePicker(idInputEl.value); // لو فيه قيمة محفوظة في الحقل فعلاً تبدأ بـ W
+  }
+}
+
+function toggleCranePicker(val){
+  const wrap = document.getElementById('cranePickerWrap');
+  if(!wrap) return;
+  if((val||'').trim().toUpperCase().startsWith('W')){
+    wrap.style.display = 'block';
+    renderCranePicker();
+  }else{
+    wrap.style.display = 'none';
+  }
+}
+
+function renderCranePicker(){
+  const picker = document.getElementById('cranePicker');
+  if(!picker) return;
+  picker.innerHTML = ['1','2','3','4','5','6','7'].map(c=>
+    `<button type="button" class="crane-chip${preselectedCrane===c ? ' active' : ''}" data-crane-pick="${c}">C${c.padStart(2,'0')}</button>`
+  ).join('');
+  picker.querySelectorAll('[data-crane-pick]').forEach(btn=>{
+    btn.onclick = ()=>{
+      preselectedCrane = btn.dataset.cranePick;
+      try{ localStorage.setItem(PENDING_CRANE_KEY, preselectedCrane); }catch(e){}
+      renderCranePicker();
+      toast('كرين C' + preselectedCrane.padStart(2,'0') + ' هيتكتب تلقائي في التاسك الجاي');
+    };
+  });
+}
+
+/* ---------- Rendering ---------- */
+function render(){
+  if(!myId){
+    mainArea.innerHTML = `<div class="empty">اكتب الـ ID بتاعك فوق عشان تدخل اللوحة<br><span style="font-size:11.5px;">W#### / P#### / M#### / V####</span></div>`;
+    return;
+  }
+  if(myRole === 'W') mainArea.innerHTML = renderWView();
+  else if(myRole === 'P') mainArea.innerHTML = renderPView();
+  else mainArea.innerHTML = renderMVView(); // M و V بنفس الشاشة، الفرق في الأزرار بس
+
+  const newBtn = document.getElementById('newTaskBtn');
+  if(newBtn) newBtn.onclick = openNewTaskModal;
+
+  const exportBtn = document.getElementById('exportBtn');
+  if(exportBtn) exportBtn.onclick = exportHistoryCsv;
+
+  mainArea.querySelectorAll('[data-start]').forEach(btn=>{
+    btn.onclick = ()=> startTask(btn.dataset.start);
+  });
+  mainArea.querySelectorAll('[data-done]').forEach(btn=>{
+    btn.onclick = ()=> doneTask(btn.dataset.done);
+  });
+  mainArea.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = ()=> deleteTask(btn.dataset.del);
+  });
+}
+
+function statsHtml(list){
+  const w = list.filter(t=>t.status==='waiting').length;
+  const ip = list.filter(t=>t.status==='inprogress').length;
+  const d = list.filter(t=>t.status==='done').length;
+  return `
+    <div class="dash-stats">
+      <div class="stat-box waiting"><div class="num">${w}</div><div class="lbl">Waiting</div></div>
+      <div class="stat-box inprogress"><div class="num">${ip}</div><div class="lbl">In Progress</div></div>
+      <div class="stat-box done"><div class="num">${d}</div><div class="lbl">Done</div></div>
+    </div>`;
+}
+
+function baseCard(t, opts){
+  opts = opts || {};
+  return `
+    <div class="card st-${t.status}">
+      <div class="card-top">
+        <span class="badge">${statusLabel(t.status)}</span>
+        <span class="time">${fmtTime(t.createdAt)}</span>
+      </div>
+      <div class="container-no">${escapeHtml(t.container)}</div>
+      <div class="route">From: ${escapeHtml(t.from)}${t.startedBy ? ' → ' + escapeHtml(t.startedBy) : ''}</div>
+      <div class="info-row"><span class="k">Position</span><span class="v">${escapeHtml(t.position||'—')}</span></div>
+      <div class="info-row"><span class="k">Crane</span><span class="v">${escapeHtml(t.crane||'—')}</span></div>
+      <div class="info-row"><span class="k">Truck</span><span class="v">${escapeHtml(t.truck||'—')}</span></div>
+      <div class="info-row"><span class="k">Position on Arrival</span><span class="v">${escapeHtml(t.positionOnArrival||'—')}</span></div>
+      ${opts.extra || ''}
+    </div>`;
+}
+
+function renderWView(){
+  const mine = tasks.filter(t=>t.from===myId).sort((a,b)=> b.createdAt - a.createdAt);
+  let toolbar = `<div class="toolbar"><h2>التاسكات اللي أنشأتها</h2><button class="new-btn" id="newTaskBtn">＋ New Task</button></div>`;
+  let cards;
+  if(mine.length === 0){
+    cards = `<div class="empty">مفيش تاسكات لسه — دوس New Task عشان تبدأ</div>`;
+  }else{
+    cards = `<div class="grid">` + mine.map(t=>{
+      let actions = '<div class="card-actions">';
+      if(t.status === 'inprogress'){
+        actions += `<button class="btn-done" data-done="${t.id}">Done</button>`;
+      }
+      actions += `<button class="btn-del" data-del="${t.id}">حذف</button></div>`;
+      return baseCard(t, {extra: actions});
+    }).join('') + `</div>`;
+  }
+  return statsHtml(mine) + toolbar + cards;
+}
+
+function renderPView(){
+  const waiting = tasks.filter(t=>t.status==='waiting').sort((a,b)=> b.createdAt - a.createdAt);
+  const mineInProgress = tasks.filter(t=>t.status==='inprogress' && t.startedBy===myId).sort((a,b)=> b.startedAt - a.startedAt);
+
+  let out = `<div class="toolbar"><h2>تاسكات جديدة (Waiting)</h2></div>`;
+  if(waiting.length === 0){
+    out += `<div class="empty">مفيش تاسكات جديدة دلوقتي</div>`;
+  }else{
+    out += `<div class="grid">` + waiting.map(t=>{
+      const extra = `
+        <div class="poa-field">
+          <label>Position on Arrival</label>
+          <input type="text" id="poa-${t.id}" placeholder="اكتب الموضع الحالي" class="mono" />
+        </div>
+        <div class="card-actions"><button class="btn-start" data-start="${t.id}">Start</button></div>`;
+      return baseCard(t, {extra});
+    }).join('') + `</div>`;
+  }
+
+  if(mineInProgress.length){
+    out += `<div class="toolbar" style="margin-top:26px;"><h2>التاسكات اللي بدأتها إنت (In Progress)</h2></div>`;
+    out += `<div class="grid">` + mineInProgress.map(t=> baseCard(t)).join('') + `</div>`;
+  }
+  return out;
+}
+
+function renderMVView(){
+  const isM = myRole === 'M';
+  const all = (isM ? historyLog : tasks).slice().sort((a,b)=> b.createdAt - a.createdAt);
+
+  let toolbar = `<div class="toolbar"><h2>${isM ? 'History — كل الحاويات (حتى اللي اتحذفت)' : 'مشاهدة فقط — كل التاسكات'}</h2>`;
+  if(isM) toolbar += `<button class="new-btn" id="exportBtn">⬇ Export Excel</button>`;
+  toolbar += `</div>`;
+
+  let cards;
+  if(all.length === 0){
+    cards = `<div class="empty">مفيش تاسكات مسجلة</div>`;
+  }else{
+    cards = `<div class="grid">` + all.map(t=>{
+      let extra = '';
+      if(isM){
+        if(t.deleted){
+          extra = `<div class="info-row"><span class="k">الحالة</span><span class="v" style="color:var(--waiting)">محذوفة (${fmtTime(t.deletedAt)})</span></div>`;
+        }else{
+          extra = `<div class="card-actions"><button class="btn-del" data-del="${t.id}">حذف</button></div>`;
+        }
+      }
+      return baseCard(t, {extra});
+    }).join('') + `</div>`;
+  }
+  return statsHtml(all.filter(t=>!t.deleted)) + toolbar + cards;
+}
+
+/* ---------- Export (M only) — شيت واحد فيه كل الحاويات: رقم الحاوية / البوزيشن / بوزيشن الوصول ---------- */
+function exportHistoryCsv(){
+  const rows = historyLog.slice().sort((a,b)=> a.createdAt - b.createdAt);
+  const header = ['Container Number', 'Position', 'Position on Arrival', 'Status', 'Deleted?', 'Created By', 'Started By', 'Created At'];
+  const csvEscape = (v)=>{
+    const s = v==null ? '' : String(v);
+    return '"' + s.replace(/"/g,'""') + '"';
+  };
+  const statusAr = {waiting:'Waiting', inprogress:'In Progress', done:'Done'};
+  const lines = [header.map(csvEscape).join(',')];
+  rows.forEach(t=>{
+    lines.push([
+      t.container || '',
+      t.position || '',
+      t.positionOnArrival || '',
+      statusAr[t.status] || t.status || '',
+      t.deleted ? 'Yes' : 'No',
+      t.from || '',
+      t.startedBy || '',
+      fmtTime(t.createdAt)
+    ].map(csvEscape).join(','));
+  });
+  const csvContent = '\uFEFF' + lines.join('\r\n');
+  const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'containers-history-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('اتعمل Export للشيت ✓');
+}
+
+/* ---------- Actions ---------- */
+function startTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  const input = document.getElementById('poa-'+id);
+  const poa = input ? input.value.trim() : '';
+  if(!poa){ toast('لازم تكتب Position on Arrival الأول'); return; }
+  t.positionOnArrival = poa;
+  t.status = 'inprogress';
+  t.startedBy = myId;
+  t.startedAt = Date.now();
+  persistTasks();
+  updateHistoryEntry(id, {positionOnArrival: poa, status:'inprogress', startedBy: myId, startedAt: t.startedAt});
+  render();
+  toast('بدأت التنفيذ ✓');
+}
+
+function doneTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.status = 'done';
+  t.doneAt = Date.now();
+  persistTasks();
+  updateHistoryEntry(id, {status:'done', doneAt: t.doneAt});
+  render();
+  toast('تم إغلاق التاسك ✓');
+}
+
+function deleteTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  if(myRole === 'W' && t.from !== myId){ toast('تقدر تحذف تاسكاتك بس'); return; }
+  if(!confirm('متأكد إنك عايز تحذف التاسك ده نهائيًا؟')) return;
+  tasks = tasks.filter(x=>x.id!==id);
+  persistTasks();
+  updateHistoryEntry(id, {deleted:true, deletedAt: Date.now(), lastStatusBeforeDelete: t.status});
+  render();
+  toast('اتحذف ✓ (لسه محفوظ في الـ History)');
+}
+
+function openNewTaskModal(){
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  const craneOptions = ['1','2','3','4','5','6','7'].map(c=>`<option value="${c}">Crane ${c}</option>`).join('');
+
+  bg.innerHTML = `
+    <div class="modal">
+      <h3>New Task</h3>
+      <div style="font-size:11.5px; color:var(--text-dim); margin-bottom:14px;">التاسك ده هيوصل لكل مستخدمي P.</div>
+      <div class="field"><label>Container Number</label><input id="cInput" class="mono" placeholder="HLBU1234567" /></div>
+      <div class="field"><label>Position</label><input id="pInput" placeholder="22-04-82" /></div>
+      <div class="field"><label>Crane</label><select id="craneInput"><option value="">اختر</option>${craneOptions}</select></div>
+      <div class="field"><label>Truck</label><input id="tInput" class="mono" placeholder="TR15" /></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="cancelBtn">إلغاء</button>
+        <button class="btn-send" id="sendBtn">Send Task</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(bg);
+  if(preselectedCrane){ document.getElementById('craneInput').value = preselectedCrane; }
+  bg.onclick = (e)=>{ if(e.target===bg) bg.remove(); };
+  document.getElementById('cancelBtn').onclick = ()=> bg.remove();
+  document.getElementById('sendBtn').onclick = ()=>{
+    const container = document.getElementById('cInput').value.trim().toUpperCase();
+    const position = document.getElementById('pInput').value.trim();
+    const crane = document.getElementById('craneInput').value;
+    const truck = document.getElementById('tInput').value.trim().toUpperCase();
+
+    if(!container || !position || !crane || !truck){ toast('لازم تملأ كل الحقول'); return; }
+
+    const newTask = {
+      id: 'tk_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      container, position, crane, truck,
+      from: myId,
+      positionOnArrival: '',
+      startedBy: null,
+      status: 'waiting',
+      createdAt: Date.now(),
+      startedAt: null,
+      doneAt: null
+    };
+    tasks.push(newTask);
+    persistTasks();
+    addHistoryEntry(newTask);
+    render();
+    bg.remove();
+    toast('اتبعت التاسك ✓');
+  };
+}
+
+(function init(){
+  loadId();
+  loadTasks();
+  loadHistory();
+  render();
+})();
+</script>
+</body>
+</html>
